@@ -1,0 +1,76 @@
+---
+title: "Descriptive Statistics"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+
+```{r Packages, message=FALSE, warning=FALSE}
+# Load the needed packages
+library("RODBC")
+library("dplyr")
+library("sqldf")
+library("tidyverse")
+```
+
+```{r Data Ingestion, warning=FALSE}
+# Ingest Business and Review data from SQL server
+# Yelp data comes in JSON format, SQL Sever OPEN_JSON function was used to convert it into a tabular format
+
+# Create and open SQL connection
+conn <- odbcDriverConnect('driver={SQL Server};server=.;database=CIND820_Filtered;Trusted_Connection=true;')
+
+# Read the business (restaurant) data using the SQL connection
+# Attributes such as business name and address details are ignored, since they will not add any value to this analysis
+rest_data <- sqlQuery(conn, " SELECT BusinessId, Stars, ReviewCount, PriceRange, WiFi, 
+                              BikeParking, BusinessParking, WheelchairAccessible, DogsAllowed, 
+                              AcceptsCreditCards, AcceptsBitcoin, TableService, Delivery, TakeOut, Caters, Reservations, 
+                              OutdoorSeating, GoodForGroups, Ambience, Attire, Alcohol, HappyHour, HasTV, NoiseLevel, GoodForMeal, Categories
+                              FROM [CIND820_Filtered].[dbo].[BCRestaurants]"
+                      )
+
+# Convert the SQL date table into a data frames
+rest_data <- as.data.frame(rest_data)
+
+# read the review data using the SQL connection
+rev_data <- sqlQuery(conn, "SELECT TOP 10000 [ReviewId], [BusinessId], [Stars], [Text] 
+                            FROM dbo.BCRestaurantReviews
+                            WHERE Text IS NOT NULL")
+# convert the SQL date into data frames
+rev_data <- as.data.frame(rev_data)
+
+# Ingest the Review data from GitHub
+
+# Alternatively, the data is also available in csv format --> part of the Github repo: https://github.com/mazinkamal134/CIND820/blob/main/Reviews.csv
+rest_data = read.csv(file = "https://github.com/mazinkamal134/CIND820/raw/main/Businesses.csv", header = TRUE, na.strings = c("", "NA", "N/A", "NULL"), fileEncoding="UTF-8-BOM")
+
+# Alternatively, the data is also available in csv format (A sample of 10K obs.) --> part of the Github repo: https://github.com/mazinkamal134/CIND820/blob/main/Reviews.csv
+rev_data = read.csv(file = "https://raw.githubusercontent.com/mazinkamal134/CIND820/main/Reviews.csv", header = TRUE, na.strings = c("", "NA", "N/A", "NULL"), fileEncoding="UTF-8-BOM")
+```
+
+```{r Biz Stat}
+# Business Data Statistics
+
+hist(rest_data$Stars, xlab = "Stars", main = "Rating Stars Distribution")
+summary(rest_data$Stars)
+summary(rest_data$ReviewCount)
+par(mfrow=c(1,2))
+boxplot(rest_data$ReviewCount, outline = FALSE)
+boxplot(rest_data$ReviewCount, outline = TRUE)
+par(mfrow=c(1,1))
+pie(table(rest_data$PriceRange)[-5], main = "Price Range")
+
+```
+
+```{r # Review Stat}
+# Review Data Statistics
+
+summary(rev_data$Stars)
+hist(rev_data$Stars, xlab = "Stars", main = "Review Stars Distribution")
+boxplot(rev_data$Stars, main = "Review Star Rating Summary")
+par(mfrow=c(1,2))
+barplot(table(rev_data$Stars), main = "Review Star Rating", xlab = "Stars", ylab = "Count")
+pie(table(rev_data$Stars))
+```
